@@ -1,0 +1,49 @@
+name: 'Kiro Action'
+description: 'Run Kiro AI in your GitHub workflows — review, implement, and automate with @kiro'
+author: 'kiro-action'
+
+branding:
+  icon: 'cpu'
+  color: 'orange'
+
+inputs:
+  kiro_api_key:
+    description: 'Kiro API key (set as repository secret KIRO_API_KEY)'
+    required: true
+  github_token:
+    description: 'GitHub token for API operations'
+    default: ${{ github.token }}
+    required: false
+  kiro_version:
+    # Pinned to 2.0.0: auth bug exists in 2.0.1–2.1.1 (kirodotdev/kiro#7896, #7929)
+    # Bump this default once the upstream fix is confirmed.
+    description: 'Kiro CLI version to install'
+    default: '2.0.0'
+    required: false
+  prompt:
+    description: 'Explicit prompt for automation mode (scheduled/push triggers)'
+    required: false
+  trigger_phrase:
+    description: 'Comment phrase that activates Kiro'
+    default: '@kiro'
+    required: false
+  assignee_trigger:
+    description: 'GitHub username whose assignment triggers Kiro'
+    default: 'kiro'
+    required: false
+  branch_prefix:
+    description: 'Prefix for branches created by Kiro'
+    default: 'kiro/'
+    required: false
+
+outputs:
+  branch_name:
+    description: 'Branch created by Kiro (if any)'
+  pr_url:
+    description: 'Pull request URL opened by Kiro (if any)'
+  kiro_output:
+    description: 'Cleaned text output from Kiro CLI'
+
+runs:
+  using: node20
+  main: dist/index.js

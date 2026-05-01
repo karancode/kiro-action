@@ -1,0 +1,19 @@
+node_modules/
+.env
+.env.local
+
+# Bun
+bun.lockb
+
+# Build output — dist/ is committed for the action to work without a build step
+# Only ignore local build artifacts not meant for release
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
