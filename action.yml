@@ -29,6 +29,14 @@ inputs:
     description: 'Prefix for branches created by Kiro'
     default: 'kiro/'
     required: false
+  kiro_args:
+    description: 'Additional arguments passed to kiro-cli chat (e.g. "--agent code-reviewer")'
+    default: '--trust-all-tools'
+    required: false
+  trust_all_tools:
+    description: 'Pass --trust-all-tools to kiro-cli, allowing it to write files and execute commands without per-tool confirmation'
+    default: 'true'
+    required: false
 
 outputs:
   branch_name:

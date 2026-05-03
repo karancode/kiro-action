@@ -131,6 +131,7 @@ The output is available as a step output for downstream steps:
 | `trigger_phrase` | No | `@kiro` | Comment phrase that activates comment mode. |
 | `assignee_trigger` | No | `kiro` | GitHub username that activates assign mode. |
 | `branch_prefix` | No | `kiro/` | Prefix for branches created by Kiro. |
+| `kiro_args` | No | `--trust-all-tools` | Extra arguments passed to `kiro-cli chat`. |
 
 ## Outputs
 

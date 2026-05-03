@@ -8,11 +8,14 @@ export interface RunResult {
 }
 
 export async function runKiro(prompt: string, apiKey: string): Promise<RunResult> {
+  const extraArgs = core.getInput("kiro_args").trim().split(/\s+/).filter(Boolean);
+  const args = ["chat", "--no-interactive", ...extraArgs, prompt];
+
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     const errChunks: Buffer[] = [];
 
-    const proc = spawn("kiro-cli", ["chat", "--no-interactive", prompt], {
+    const proc = spawn("kiro-cli", args, {
       env: {
         ...process.env,
         KIRO_API_KEY: apiKey,
