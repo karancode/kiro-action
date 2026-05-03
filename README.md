@@ -127,7 +127,6 @@ The output is available as a step output for downstream steps:
 |---|---|---|---|
 | `kiro_api_key` | Yes | — | Kiro API key. Use a repository secret. |
 | `github_token` | No | `github.token` | GitHub token for API operations. |
-| `kiro_version` | No | `2.0.0` | Kiro CLI version to install. See [version pinning](#version-pinning). |
 | `prompt` | No | — | Explicit prompt for auto mode. |
 | `trigger_phrase` | No | `@kiro` | Comment phrase that activates comment mode. |
 | `assignee_trigger` | No | `kiro` | GitHub username that activates assign mode. |
@@ -152,21 +151,6 @@ permissions:
   contents: write       # push branches
   issues: write         # post and update comments
   pull-requests: write  # open pull requests
-```
-
----
-
-## Version pinning
-
-The default `kiro_version` is pinned to `2.0.0`. Versions `2.0.1`–`2.1.1` have a known headless authentication bug ([kirodotdev/kiro#7896](https://github.com/kirodotdev/kiro/issues/7896)) that breaks `--no-interactive` mode in CI. The default will be bumped once the fix ships upstream.
-
-To use a specific version:
-
-```yaml
-- uses: karancode/kiro-action@main
-  with:
-    kiro_api_key: ${{ secrets.KIRO_API_KEY }}
-    kiro_version: '2.0.0'
 ```
 
 ---
@@ -244,7 +228,6 @@ See [CLAUDE.md](CLAUDE.md) for architecture details.
 
 ## Roadmap
 
-- [ ] Confirm and bump default CLI version once auth bug is fixed upstream
 - [ ] Support AWS IAM / SIGV4 authentication (no long-lived API keys)
 - [ ] Kiro spec-driven mode: issue → auto-generate `.kiro/specs/` → implement
 - [ ] Transfer to `github.com/kirodotdev/kiro-action`
