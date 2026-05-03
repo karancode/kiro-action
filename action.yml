@@ -14,12 +14,6 @@ inputs:
     description: 'GitHub token for API operations'
     default: ${{ github.token }}
     required: false
-  kiro_version:
-    # Pinned to 2.0.0: auth bug exists in 2.0.1–2.1.1 (kirodotdev/kiro#7896, #7929)
-    # Bump this default once the upstream fix is confirmed.
-    description: 'Kiro CLI version to install'
-    default: '2.0.0'
-    required: false
   prompt:
     description: 'Explicit prompt for automation mode (scheduled/push triggers)'
     required: false

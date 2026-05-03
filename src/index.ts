@@ -9,8 +9,7 @@ import { runAutoMode } from "./modes/auto-mode.js";
 
 async function run(): Promise<void> {
   try {
-    const kiroVersion = core.getInput("kiro_version") || "2.0.0";
-    await installKiro(kiroVersion);
+    await installKiro();
 
     const apiKey = validateAuth();
     const ctx = parseGithubContext();
