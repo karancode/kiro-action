@@ -8,7 +8,7 @@ Full agentic loop: `@kiro` mentions in PRs/issues → Kiro reads context → imp
 
 Three trigger modes:
 - **comment-mode**: `@kiro <instruction>` in any PR or issue comment
-- **assign-mode**: Issue or PR assigned to `kiro` (or configured `assignee_trigger`)
+- **assign-mode**: Issue or PR assigned to `kirocli` (or configured `assignee_trigger`)
 - **auto-mode**: Explicit `prompt:` input in a scheduled or push workflow
 
 ## Stack

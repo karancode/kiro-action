@@ -2,7 +2,7 @@
 
 GitHub Action for [Kiro](https://kiro.dev) — the AI-powered agentic IDE by AWS.
 
-Bring Kiro's full agentic loop into your GitHub workflows: mention `@kiro` in any PR or issue, assign it to an issue, or run it on a schedule — and Kiro reads the context, implements the changes, and opens a pull request.
+Bring Kiro's full agentic loop into your GitHub workflows: mention `/kiro` in any PR or issue, assign it to an issue, or run it on a schedule — and Kiro reads the context, implements the changes, and opens a pull request.
 
 ---
 
@@ -12,7 +12,7 @@ Three trigger modes:
 
 | Mode | How to trigger | What happens |
 |---|---|---|
-| **comment** | Comment `@kiro <instruction>` on any PR or issue | Kiro reads the context, implements the change, commits, opens a PR |
+| **comment** | Comment `/kiro <instruction>` on any PR or issue | Kiro reads the context, implements the change, commits, opens a PR |
 | **assign** | Assign the issue or PR to `kiro` | Kiro reads the issue body, implements a solution, opens a PR |
 | **auto** | Set `prompt:` in a scheduled or push workflow | Kiro runs the prompt against the repo, returns structured output |
 
@@ -62,7 +62,7 @@ jobs:
 Comment on any issue or PR:
 
 ```
-@kiro fix the null pointer exception in src/auth/login.ts
+/kiro fix the null pointer exception in src/auth/login.ts
 ```
 
 Kiro will:
@@ -78,12 +78,12 @@ Kiro will:
 
 ### Comment mode
 
-Mention `@kiro` followed by your instruction in any issue or issue comment, PR comment, or PR review comment.
+Mention `/kiro` followed by your instruction in any issue or issue comment, PR comment, or PR review comment.
 
 ```
-@kiro refactor this function to use async/await
-@kiro add unit tests for the new billing module
-@kiro explain what this code does and suggest improvements
+/kiro refactor this function to use async/await
+/kiro add unit tests for the new billing module
+/kiro explain what this code does and suggest improvements
 ```
 
 Only users with **write access** to the repo can trigger Kiro via comments.
@@ -128,7 +128,7 @@ The output is available as a step output for downstream steps:
 | `kiro_api_key` | Yes | — | Kiro API key. Use a repository secret. |
 | `github_token` | No | `github.token` | GitHub token for API operations. |
 | `prompt` | No | — | Explicit prompt for auto mode. |
-| `trigger_phrase` | No | `@kiro` | Comment phrase that activates comment mode. |
+| `trigger_phrase` | No | `/kiro` | Comment phrase that activates comment mode. |
 | `assignee_trigger` | No | `kiro` | GitHub username that activates assign mode. |
 | `branch_prefix` | No | `kiro/` | Prefix for branches created by Kiro. |
 | `kiro_args` | No | `--trust-all-tools` | Extra arguments passed to `kiro-cli chat`. |

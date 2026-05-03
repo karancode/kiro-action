@@ -30,20 +30,20 @@ describe("detectMode", () => {
     expect(detectMode(makeCtx())).toBe("auto");
   });
 
-  it("returns comment for issue_comment with @kiro mention", () => {
-    inputs["trigger_phrase"] = "@kiro";
-    const ctx = makeCtx({ eventName: "issue_comment", commentBody: "hey @kiro fix this", issueNumber: 1 });
+  it("returns comment for issue_comment with /kiro mention", () => {
+    inputs["trigger_phrase"] = "/kiro";
+    const ctx = makeCtx({ eventName: "issue_comment", commentBody: "hey /kiro fix this", issueNumber: 1 });
     expect(detectMode(ctx)).toBe("comment");
   });
 
   it("returns comment for pull_request_review_comment with trigger", () => {
-    inputs["trigger_phrase"] = "@kiro";
-    const ctx = makeCtx({ eventName: "pull_request_review_comment", commentBody: "@kiro refactor", prNumber: 5 });
+    inputs["trigger_phrase"] = "/kiro";
+    const ctx = makeCtx({ eventName: "pull_request_review_comment", commentBody: "/kiro refactor", prNumber: 5 });
     expect(detectMode(ctx)).toBe("comment");
   });
 
   it("returns skip when comment lacks trigger phrase", () => {
-    inputs["trigger_phrase"] = "@kiro";
+    inputs["trigger_phrase"] = "/kiro";
     const ctx = makeCtx({ eventName: "issue_comment", commentBody: "nice PR!", issueNumber: 1 });
     expect(detectMode(ctx)).toBe("skip");
   });
