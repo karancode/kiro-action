@@ -23,7 +23,7 @@ Three trigger modes:
 ```
 src/
   index.ts                 # Entry point — reads inputs, detects mode, dispatches
-  setup/install-kiro.ts    # Downloads + caches pinned Kiro CLI binary
+  setup/install-kiro.ts    # Installs Kiro CLI via official install script, caches by version
   github/
     context.ts             # Parses GitHub event payload into typed GithubContext
     comment.ts             # Sticky progress comment (post + update)
@@ -40,10 +40,11 @@ src/
     ansi.ts                # Strips ANSI escape codes (workaround for kiro#7929)
 ```
 
-## CLI version pinning
+## CLI installation
 
-Default `kiro_version` is `2.0.0`. Versions 2.0.1–2.1.1 have a broken headless auth bug
-tracked at kirodotdev/kiro#7896 and #7929. Bump the default in `action.yml` once fixed upstream.
+The Kiro CLI is installed via the official install script at `https://cli.kiro.dev/install`.
+Version is resolved at runtime from the stable manifest at `https://prod.download.cli.kiro.dev/stable/latest/manifest.json`.
+The binary is named `kiro-cli` and installed to `~/.local/bin/`.
 
 ## Commands
 

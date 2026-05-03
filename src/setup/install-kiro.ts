@@ -1,96 +1,125 @@
 import * as core from "@actions/core";
-import * as cache from "@actions/cache";
 import * as tc from "@actions/tool-cache";
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
-import * as crypto from "crypto";
 
-// Known SHA256 checksums for pinned versions.
-// Add entries here when bumping the default version.
-const CHECKSUMS: Record<string, Record<string, string>> = {
-  "2.0.0": {
-    "linux-x64": "", // populate once binary is available
-    "linux-arm64": "",
-    "darwin-x64": "",
-    "darwin-arm64": "",
-  },
-};
+const MANIFEST_URL = "https://prod.download.cli.kiro.dev/stable/latest/manifest.json";
+const MANIFEST_BASE_URL = "https://prod.download.cli.kiro.dev/stable/latest";
 
-function getPlatformKey(): string {
-  const platform = process.platform === "darwin" ? "darwin" : "linux";
-  const arch = process.arch === "arm64" ? "arm64" : "x64";
-  return `${platform}-${arch}`;
+interface KiroPackage {
+  os: string;
+  architecture: string;
+  variant: string;
+  fileType: string;
+  download: string;
+  sha256: string;
 }
 
-function getBinaryName(platformKey: string): string {
-  const names: Record<string, string> = {
-    "linux-x64": "kiro-linux-x64",
-    "linux-arm64": "kiro-linux-arm64",
-    "darwin-x64": "kiro-macos-x64",
-    "darwin-arm64": "kiro-macos-arm64",
-  };
-  const name = names[platformKey];
-  if (!name) throw new Error(`Unsupported platform: ${platformKey}`);
-  return name;
+interface KiroManifest {
+  version: string;
+  packages: KiroPackage[];
 }
 
-function getDownloadUrl(version: string, binaryName: string): string {
-  return `https://github.com/kirodotdev/kiro/releases/download/v${version}/${binaryName}`;
+function getCurrentPlatform(): { os: string; arch: string } {
+  const os = process.platform === "darwin" ? "macos" : "linux";
+  const arch = process.arch === "arm64" ? "aarch64" : "x86_64";
+  return { os, arch };
+}
+
+async function fetchManifest(): Promise<KiroManifest> {
+  const response = await fetch(MANIFEST_URL);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Kiro CLI manifest: ${response.status} ${response.statusText}`);
+  }
+  return response.json() as Promise<KiroManifest>;
+}
+
+function selectPackage(manifest: KiroManifest, os: string, arch: string): KiroPackage {
+  // Prefer the headless variant for CI — falls back to full if headless not available
+  const headless = manifest.packages.find(
+    (p) => p.os === os && p.architecture === arch && p.variant === "headless"
+  );
+  const full = manifest.packages.find(
+    (p) => p.os === os && p.architecture === arch && p.variant === "full"
+  );
+  const pkg = headless ?? full;
+  if (!pkg) {
+    throw new Error(`No Kiro CLI package found for ${os}/${arch}`);
+  }
+  return pkg;
 }
 
 async function verifyChecksum(filePath: string, expected: string): Promise<void> {
-  if (!expected) {
-    core.warning("No checksum available for this version/platform — skipping verification.");
-    return;
-  }
   const data = fs.readFileSync(filePath);
   const actual = crypto.createHash("sha256").update(data).digest("hex");
   if (actual !== expected) {
-    throw new Error(`Checksum mismatch for Kiro CLI binary.\nExpected: ${expected}\nActual:   ${actual}`);
+    throw new Error(
+      `Kiro CLI checksum mismatch.\nExpected: ${expected}\nActual:   ${actual}`
+    );
   }
-  core.debug(`Checksum verified: ${actual}`);
+  core.debug(`SHA256 verified: ${actual}`);
 }
 
-export async function installKiro(version: string): Promise<void> {
-  const platformKey = getPlatformKey();
-  const binaryName = getBinaryName(platformKey);
-  const cacheKey = `kiro-cli-${version}-${platformKey}`;
-  const installDir = path.join(process.env["RUNNER_TOOL_CACHE"] ?? "/tmp", "kiro", version, platformKey);
-  const binaryPath = path.join(installDir, "kiro");
+export async function installKiro(): Promise<void> {
+  const { os, arch } = getCurrentPlatform();
 
-  // Check tool cache first
-  const cached = tc.find("kiro", version, platformKey);
+  core.info("Fetching Kiro CLI manifest...");
+  const manifest = await fetchManifest();
+  const version = manifest.version;
+
+  // Check tool cache first (fastest path — no network needed after first install)
+  const cached = tc.find("kiro-cli", version, arch);
   if (cached) {
     core.addPath(cached);
     core.info(`Kiro CLI ${version} loaded from tool cache.`);
     return;
   }
 
-  // Check actions cache
-  const cacheHit = await cache.restoreCache([installDir], cacheKey);
-  if (cacheHit && fs.existsSync(binaryPath)) {
-    core.addPath(installDir);
-    core.info(`Kiro CLI ${version} restored from actions cache.`);
-    return;
+  const pkg = selectPackage(manifest, os, arch);
+  const downloadUrl = `${MANIFEST_BASE_URL}/${pkg.download}`;
+
+  core.info(`Installing Kiro CLI ${version} (${os}/${arch})...`);
+  core.debug(`Download URL: ${downloadUrl}`);
+
+  const downloadedPath = await tc.downloadTool(downloadUrl);
+  await verifyChecksum(downloadedPath, pkg.sha256);
+  core.info("SHA256 checksum verified.");
+
+  // Extract — handle both tar.xz / tar.gz / zip
+  let extractedDir: string;
+  if (pkg.fileType === "tarXz" || pkg.fileType === "tarGz" || pkg.fileType === "tarZst") {
+    extractedDir = await tc.extractTar(downloadedPath, undefined, ["x"]);
+  } else if (pkg.fileType === "zip") {
+    extractedDir = await tc.extractZip(downloadedPath);
+  } else {
+    throw new Error(`Unsupported file type: ${pkg.fileType}`);
   }
 
-  // Download
-  const downloadUrl = getDownloadUrl(version, binaryName);
-  core.info(`Downloading Kiro CLI ${version} from ${downloadUrl}`);
-  const downloadedPath = await tc.downloadTool(downloadUrl);
+  // Find the kiro-cli binary inside the extracted directory
+  const binaryPath = findBinary(extractedDir, "kiro-cli");
+  if (!binaryPath) {
+    throw new Error(`kiro-cli binary not found in extracted archive at ${extractedDir}`);
+  }
 
-  // Verify checksum
-  const expectedChecksum = CHECKSUMS[version]?.[platformKey] ?? "";
-  await verifyChecksum(downloadedPath, expectedChecksum);
+  // Cache the directory containing the binary for future runs
+  const binDir = path.dirname(binaryPath);
+  const cachedDir = await tc.cacheDir(binDir, "kiro-cli", version, arch);
+  core.addPath(cachedDir);
 
-  // Install
-  fs.mkdirSync(installDir, { recursive: true });
-  fs.copyFileSync(downloadedPath, binaryPath);
-  fs.chmodSync(binaryPath, 0o755);
-
-  // Save to actions cache for future runs
-  await cache.saveCache([installDir], cacheKey);
-
-  core.addPath(installDir);
   core.info(`Kiro CLI ${version} installed successfully.`);
+}
+
+function findBinary(dir: string, name: string): string | null {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const found = findBinary(fullPath, name);
+      if (found) return found;
+    } else if (entry.name === name || entry.name === `${name}.exe`) {
+      fs.chmodSync(fullPath, 0o755);
+      return fullPath;
+    }
+  }
+  return null;
 }

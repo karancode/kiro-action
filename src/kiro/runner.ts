@@ -12,7 +12,7 @@ export async function runKiro(prompt: string, apiKey: string): Promise<RunResult
     const chunks: Buffer[] = [];
     const errChunks: Buffer[] = [];
 
-    const proc = spawn("kiro", ["chat", "--no-interactive", prompt], {
+    const proc = spawn("kiro-cli", ["chat", "--no-interactive", prompt], {
       env: {
         ...process.env,
         KIRO_API_KEY: apiKey,
