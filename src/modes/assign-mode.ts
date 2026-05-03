@@ -21,39 +21,49 @@ export async function runAssignMode(
 
   const commentId = await postProgressComment(octokit, ctx.owner, ctx.repo, issueNumber);
 
-  const userRequest = ctx.issueBody ?? ctx.prBody ?? "";
-  const prompt = await buildPrompt(ctx, userRequest);
-  const { output, exitCode } = await runKiro(prompt, apiKey);
+  try {
+    const userRequest = ctx.issueBody ?? ctx.prBody ?? "";
+    const prompt = await buildPrompt(ctx, userRequest);
+    const { output, exitCode } = await runKiro(prompt, apiKey);
 
-  if (exitCode !== 0) {
+    if (exitCode !== 0) {
+      await updateComment(
+        octokit, ctx.owner, ctx.repo, commentId,
+        `> ❌ Kiro encountered an error (exit code ${exitCode}).\n\n<details><summary>Output</summary>\n\n\`\`\`\n${output}\n\`\`\`\n</details>`
+      );
+      core.setFailed(`Kiro exited with code ${exitCode}`);
+      return { output };
+    }
+
+    const baseBranch = await getDefaultBranch(octokit, ctx.owner, ctx.repo);
+    const title = ctx.issueTitle ?? ctx.prTitle ?? `Kiro changes for #${issueNumber}`;
+    const branchName = await createBranch(issueNumber, title);
+    const hadChanges = await commitAndPush(branchName, `chore: kiro changes for #${issueNumber}`);
+
+    let prUrl: string | undefined;
+    if (hadChanges) {
+      prUrl = await openPullRequest(
+        octokit, ctx.owner, ctx.repo,
+        branchName,
+        `[Kiro] ${title}`,
+        `Automated changes from Kiro for #${issueNumber}.\n\n${output}`,
+        baseBranch
+      );
+    }
+
+    const finalBody = hadChanges
+      ? `✅ Kiro has completed the task. ${prUrl ? `[View PR](${prUrl})` : ""}\n\n<details><summary>Summary</summary>\n\n${output}\n</details>`
+      : `✅ Kiro completed the task but made no file changes.\n\n<details><summary>Summary</summary>\n\n${output}\n</details>`;
+
+    await updateComment(octokit, ctx.owner, ctx.repo, commentId, finalBody);
+    return { branchName: hadChanges ? branchName : undefined, prUrl, output };
+
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     await updateComment(
       octokit, ctx.owner, ctx.repo, commentId,
-      `> Kiro encountered an error (exit code ${exitCode}).\n\n<details><summary>Output</summary>\n\n\`\`\`\n${output}\n\`\`\`\n</details>`
+      `> ❌ Kiro action failed: ${message}\n\nCheck the [workflow run](https://github.com/${ctx.owner}/${ctx.repo}/actions) for details.`
     );
-    core.setFailed(`Kiro exited with code ${exitCode}`);
-    return { output };
+    throw err;
   }
-
-  const baseBranch = await getDefaultBranch(octokit, ctx.owner, ctx.repo);
-  const title = ctx.issueTitle ?? ctx.prTitle ?? `Kiro changes for #${issueNumber}`;
-  const branchName = await createBranch(issueNumber, title);
-  const hadChanges = await commitAndPush(branchName, `chore: kiro changes for #${issueNumber}`);
-
-  let prUrl: string | undefined;
-  if (hadChanges) {
-    prUrl = await openPullRequest(
-      octokit, ctx.owner, ctx.repo,
-      branchName,
-      `[Kiro] ${title}`,
-      `Automated changes from Kiro for #${issueNumber}.\n\n${output}`,
-      baseBranch
-    );
-  }
-
-  const finalBody = hadChanges
-    ? `Kiro has completed the task. ${prUrl ? `[View PR](${prUrl})` : ""}\n\n<details><summary>Summary</summary>\n\n${output}\n</details>`
-    : `Kiro completed the task but made no file changes.\n\n<details><summary>Summary</summary>\n\n${output}\n</details>`;
-
-  await updateComment(octokit, ctx.owner, ctx.repo, commentId, finalBody);
-  return { branchName: hadChanges ? branchName : undefined, prUrl, output };
 }
