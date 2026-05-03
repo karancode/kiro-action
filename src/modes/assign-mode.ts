@@ -10,6 +10,7 @@ import {
   getDefaultBranch,
   openPullRequest,
 } from "../github/pr.js";
+import { parseKiroOutput } from "../utils/extract-output.js";
 
 export async function runAssignMode(
   ctx: GithubContext,
@@ -35,25 +36,29 @@ export async function runAssignMode(
       return { output };
     }
 
+    const { prTitle: extractedTitle, summary } = parseKiroOutput(output);
+
     const baseBranch = await getDefaultBranch(octokit, ctx.owner, ctx.repo);
-    const title = ctx.issueTitle ?? ctx.prTitle ?? `Kiro changes for #${issueNumber}`;
-    const branchName = await createBranch(issueNumber, title);
+    const fallbackTitle = ctx.issueTitle ?? ctx.prTitle ?? `Kiro changes for #${issueNumber}`;
+    const branchName = await createBranch(issueNumber, fallbackTitle);
     const hadChanges = await commitAndPush(branchName, `chore: kiro changes for #${issueNumber}`);
 
     let prUrl: string | undefined;
     if (hadChanges) {
+      const prTitleFinal = extractedTitle ? `[Kiro] ${extractedTitle}` : `[Kiro] ${fallbackTitle}`;
       prUrl = await openPullRequest(
         octokit, ctx.owner, ctx.repo,
         branchName,
-        `[Kiro] ${title}`,
-        `Automated changes from Kiro for #${issueNumber}.\n\n${output}`,
+        prTitleFinal,
+        `Automated changes from Kiro for #${issueNumber}.\n\n${summary ?? output}`,
         baseBranch
       );
     }
 
+    const displaySummary = summary ?? output;
     const finalBody = hadChanges
-      ? `✅ Kiro has completed the task. ${prUrl ? `[View PR](${prUrl})` : ""}\n\n<details><summary>Summary</summary>\n\n${output}\n</details>`
-      : `✅ Kiro completed the task but made no file changes.\n\n<details><summary>Summary</summary>\n\n${output}\n</details>`;
+      ? `✅ Kiro has completed the task.${prUrl ? ` [View PR](${prUrl})` : ""}\n\n<details><summary>Summary</summary>\n\n${displaySummary}\n</details>`
+      : `✅ Kiro completed the task but made no file changes.\n\n<details><summary>Summary</summary>\n\n${displaySummary}\n</details>`;
 
     await updateComment(octokit, ctx.owner, ctx.repo, commentId, finalBody);
     return { branchName: hadChanges ? branchName : undefined, prUrl, output };

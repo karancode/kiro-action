@@ -98,8 +98,13 @@ export async function buildPrompt(ctx: GithubContext, userRequest: string): Prom
   }
 
   parts.push(
-    `# Instructions\nMake the requested changes to the repository. Be concise and focused. ` +
-    `After completing your changes, summarize what you did in a short paragraph.`
+    `# Instructions\n` +
+    `Make the requested changes to the repository. Be concise and focused.\n\n` +
+    `After completing your changes, end your response with EXACTLY this format (no extra text after):\n\n` +
+    `## Summary\n` +
+    `- <what you changed, one bullet per logical change>\n` +
+    `- <...>\n\n` +
+    `PR_TITLE: <a concise, imperative-mood title for a pull request, max 72 chars>`
   );
 
   return parts.join("\n\n");
