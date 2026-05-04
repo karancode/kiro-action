@@ -38,24 +38,23 @@ export async function runAssignMode(
 
     const { prTitle: extractedTitle, summary } = parseKiroOutput(output);
 
+    const displaySummary = summary ?? output;
     const baseBranch = await getDefaultBranch(octokit, ctx.owner, ctx.repo);
-    const fallbackTitle = ctx.issueTitle ?? ctx.prTitle ?? `Kiro changes for #${issueNumber}`;
-    const branchName = await createBranch(issueNumber, fallbackTitle);
+    const branchName = await createBranch("issue", issueNumber);
     const hadChanges = await commitAndPush(branchName, `chore: kiro changes for #${issueNumber}`);
 
     let prUrl: string | undefined;
     if (hadChanges) {
+      const fallbackTitle = ctx.issueTitle ?? ctx.prTitle ?? `Kiro changes for #${issueNumber}`;
       const prTitleFinal = extractedTitle ? `[Kiro] ${extractedTitle}` : `[Kiro] ${fallbackTitle}`;
       prUrl = await openPullRequest(
         octokit, ctx.owner, ctx.repo,
         branchName,
         prTitleFinal,
-        `Automated changes from Kiro for #${issueNumber}.\n\n${summary ?? output}`,
+        `Automated changes from Kiro for #${issueNumber}.\n\n${displaySummary}`,
         baseBranch
       );
     }
-
-    const displaySummary = summary ?? output;
     const finalBody = hadChanges
       ? `✅ Kiro has completed the task.${prUrl ? ` [View PR](${prUrl})` : ""}\n\n<details><summary>Summary</summary>\n\n${displaySummary}\n</details>`
       : `✅ Kiro completed the task but made no file changes.\n\n<details><summary>Summary</summary>\n\n${displaySummary}\n</details>`;

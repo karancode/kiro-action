@@ -24,7 +24,7 @@ mock.module("@actions/exec", () => ({
   },
 }));
 
-const { createBranch, commitAndPush, openPullRequest, getDefaultBranch } =
+const { createBranch, checkoutPrBranch, commitAndPush, openPullRequest, getDefaultBranch } =
   await import("../src/github/pr");
 
 function makeOctokit(overrides: Record<string, unknown> = {}) {
@@ -48,25 +48,45 @@ describe("createBranch", () => {
     Object.keys(inputs).forEach((k) => delete inputs[k]);
   });
 
-  it("creates branch with default prefix kiro/", async () => {
-    const name = await createBranch(5, "Fix the login bug");
-    expect(name).toStartWith("kiro/5-");
-    expect(name).toContain("fix-the-login-bug");
+  it("creates branch with default prefix kiro/ and timestamp", async () => {
+    const name = await createBranch("issue", 5);
+    expect(name).toMatch(/^kiro\/issue-5-\d{8}-\d{4}$/);
     expect(execCalls.some((c) => c[0] === "git" && c[1] === "checkout")).toBe(true);
   });
 
   it("uses custom branch_prefix input", async () => {
     inputs["branch_prefix"] = "bot/";
-    const name = await createBranch(3, "My feature");
-    expect(name).toStartWith("bot/3-");
+    const name = await createBranch("issue", 3);
+    expect(name).toStartWith("bot/issue-3-");
   });
 
-  it("slugifies special characters in title", async () => {
-    const name = await createBranch(1, "Fix: typo & formatting!");
-    expect(name).not.toContain(" ");
-    expect(name).not.toContain("&");
-    expect(name).not.toContain("!");
-    expect(name).not.toContain(":");
+  it("uses pr entity type correctly", async () => {
+    const name = await createBranch("pr", 7);
+    expect(name).toMatch(/^kiro\/pr-7-\d{8}-\d{4}$/);
+  });
+
+  it("truncates branch name to 50 chars", async () => {
+    inputs["branch_prefix"] = "a".repeat(45) + "/";
+    const name = await createBranch("issue", 999);
+    expect(name.length).toBeLessThanOrEqual(50);
+  });
+});
+
+describe("checkoutPrBranch", () => {
+  beforeEach(() => { execCalls.length = 0; });
+
+  it("fetches and checks out the PR head branch", async () => {
+    const octokit = {
+      rest: {
+        pulls: {
+          get: async () => ({ data: { head: { ref: "feature/my-pr-branch" } } }),
+        },
+      },
+    } as any;
+    const branch = await checkoutPrBranch(octokit, "owner", "repo", 42);
+    expect(branch).toBe("feature/my-pr-branch");
+    expect(execCalls.some((c) => c.includes("fetch") && c.includes("feature/my-pr-branch"))).toBe(true);
+    expect(execCalls.some((c) => c.includes("checkout") && c.includes("feature/my-pr-branch"))).toBe(true);
   });
 });
 

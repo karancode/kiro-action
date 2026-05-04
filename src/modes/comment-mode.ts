@@ -10,6 +10,7 @@ import {
 } from "../github/comment.js";
 import {
   createBranch,
+  checkoutPrBranch,
   commitAndPush,
   getDefaultBranch,
   openPullRequest,
@@ -63,31 +64,50 @@ export async function runCommentMode(
     }
 
     const { prTitle: extractedTitle, summary } = parseKiroOutput(output);
-
-    const baseBranch = await getDefaultBranch(octokit, ctx.owner, ctx.repo);
-    const fallbackTitle = ctx.issueTitle ?? ctx.prTitle ?? `Kiro changes for #${issueNumber}`;
-    const branchName = await createBranch(issueNumber, fallbackTitle);
-    const hadChanges = await commitAndPush(branchName, `chore: kiro changes for #${issueNumber}`);
-
-    let prUrl: string | undefined;
-    if (hadChanges) {
-      const prTitleFinal = extractedTitle ? `[Kiro] ${extractedTitle}` : `[Kiro] ${fallbackTitle}`;
-      prUrl = await openPullRequest(
-        octokit, ctx.owner, ctx.repo,
-        branchName,
-        prTitleFinal,
-        `Automated changes from Kiro in response to #${issueNumber}.\n\n${summary ?? output}`,
-        baseBranch
-      );
-    }
-
     const displaySummary = summary ?? output;
-    const finalBody = hadChanges
-      ? `✅ Kiro has completed the task.${prUrl ? ` [View PR](${prUrl})` : ""}\n\n<details><summary>Summary</summary>\n\n${displaySummary}\n</details>`
-      : `✅ Kiro completed the task but made no file changes.\n\n<details><summary>Summary</summary>\n\n${displaySummary}\n</details>`;
 
-    await updateComment(octokit, ctx.owner, ctx.repo, commentId, finalBody);
-    return { branchName: hadChanges ? branchName : undefined, prUrl, output };
+    const isOnPr = !!ctx.prNumber;
+    let branchName: string;
+    let prUrl: string | undefined;
+
+    if (isOnPr) {
+      // Comment on an existing PR — push to its branch directly
+      branchName = await checkoutPrBranch(octokit, ctx.owner, ctx.repo, ctx.prNumber!);
+      const hadChanges = await commitAndPush(branchName, `chore: kiro changes for #${issueNumber}`);
+
+      const prHtmlUrl = `https://github.com/${ctx.owner}/${ctx.repo}/pull/${ctx.prNumber}`;
+      const finalBody = hadChanges
+        ? `✅ Kiro pushed changes to this PR. [View PR](${prHtmlUrl})\n\n<details><summary>Summary</summary>\n\n${displaySummary}\n</details>`
+        : `✅ Kiro completed the task but made no file changes.\n\n<details><summary>Summary</summary>\n\n${displaySummary}\n</details>`;
+
+      await updateComment(octokit, ctx.owner, ctx.repo, commentId, finalBody);
+      return { branchName: hadChanges ? branchName : undefined, prUrl: hadChanges ? prHtmlUrl : undefined, output };
+
+    } else {
+      // Comment on an issue — create a fresh timestamped branch and open a PR
+      const baseBranch = await getDefaultBranch(octokit, ctx.owner, ctx.repo);
+      branchName = await createBranch("issue", issueNumber);
+      const hadChanges = await commitAndPush(branchName, `chore: kiro changes for #${issueNumber}`);
+
+      if (hadChanges) {
+        const fallbackTitle = ctx.issueTitle ?? `Kiro changes for #${issueNumber}`;
+        const prTitleFinal = extractedTitle ? `[Kiro] ${extractedTitle}` : `[Kiro] ${fallbackTitle}`;
+        prUrl = await openPullRequest(
+          octokit, ctx.owner, ctx.repo,
+          branchName,
+          prTitleFinal,
+          `Automated changes from Kiro in response to #${issueNumber}.\n\n${displaySummary}`,
+          baseBranch
+        );
+      }
+
+      const finalBody = hadChanges
+        ? `✅ Kiro has completed the task.${prUrl ? ` [View PR](${prUrl})` : ""}\n\n<details><summary>Summary</summary>\n\n${displaySummary}\n</details>`
+        : `✅ Kiro completed the task but made no file changes.\n\n<details><summary>Summary</summary>\n\n${displaySummary}\n</details>`;
+
+      await updateComment(octokit, ctx.owner, ctx.repo, commentId, finalBody);
+      return { branchName: hadChanges ? branchName : undefined, prUrl, output };
+    }
 
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
