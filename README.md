@@ -158,58 +158,21 @@ permissions:
 
 ## Examples
 
-### Automated security review on every PR
+Ready-to-use workflow files for common use cases live in [`examples/`](examples/):
 
-```yaml
-name: Security Review
+| File | What it does |
+|---|---|
+| [`kiro.yml`](examples/kiro.yml) | Default workflow — `/kiro` mentions and `kiro` assignments |
+| [`issue-triage.yml`](examples/issue-triage.yml) | Auto-label new issues, ask for missing info |
+| [`pr-review.yml`](examples/pr-review.yml) | Comprehensive code review on every PR |
+| [`security-review.yml`](examples/security-review.yml) | Security review on sensitive paths only |
+| [`external-contributor-review.yml`](examples/external-contributor-review.yml) | Strict review for non-team contributors |
+| [`dependency-audit.yml`](examples/dependency-audit.yml) | Weekly dependency upgrade PR |
+| [`docs-sync.yml`](examples/docs-sync.yml) | Keep docs in sync with code changes |
+| [`code-reviewer-agent.yml`](examples/code-reviewer-agent.yml) | PR review using a custom Kiro agent |
+| [`ci-failure-fix.yml`](examples/ci-failure-fix.yml) | Auto-fix CI failures on PR branches |
 
-on:
-  pull_request:
-    types: [opened, synchronize]
-
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: karancode/kiro-action@main
-        with:
-          kiro_api_key: ${{ secrets.KIRO_API_KEY }}
-          prompt: |
-            Review the changes in this pull request for security issues.
-            Focus on: injection vulnerabilities, auth bypasses, secrets in code,
-            and insecure dependencies. Post your findings as a PR review comment.
-```
-
-### Weekly dependency audit
-
-```yaml
-name: Dependency Audit
-
-on:
-  schedule:
-    - cron: '0 9 * * 1'  # every Monday at 9am
-
-jobs:
-  audit:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: karancode/kiro-action@main
-        with:
-          kiro_api_key: ${{ secrets.KIRO_API_KEY }}
-          prompt: |
-            Check for outdated or vulnerable dependencies.
-            Update any that have safe, non-breaking upgrades available
-            and open a pull request with the changes.
-```
+Drop any of them into your repo's `.github/workflows/` directory and adapt as needed.
 
 ---
 

@@ -1,0 +1,33 @@
+# PR review using a custom Kiro agent.
+#
+# Demonstrates passing arbitrary kiro-cli flags via the `kiro_args` input.
+# Requires a `.kiro/agents/code-reviewer.json` file in the repo defining
+# the agent. See https://kiro.dev/docs/agents for the agent schema.
+
+name: PR Review (custom agent)
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: karancode/kiro-action@main
+        with:
+          kiro_api_key: ${{ secrets.KIRO_API_KEY }}
+          # --agent loads .kiro/agents/code-reviewer.json
+          # --no-trust-all-tools restricts the agent to its allowedTools list
+          kiro_args: '--agent code-reviewer'
+          prompt: |
+            Review pull request #${{ github.event.pull_request.number }}
+            using the project's code-reviewer agent.

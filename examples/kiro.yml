@@ -1,0 +1,37 @@
+# Default Kiro workflow — handles all three trigger modes.
+#
+# Activates when:
+#   - someone comments "/kiro <instruction>" on an issue or PR
+#   - an issue or PR is assigned to the user "kiro"
+#
+# Kiro reads the context, implements the change, commits to a new branch,
+# and opens a pull request.
+
+name: Kiro
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [assigned]
+  pull_request:
+    types: [assigned]
+
+jobs:
+  kiro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: karancode/kiro-action@main
+        with:
+          kiro_api_key: ${{ secrets.KIRO_API_KEY }}

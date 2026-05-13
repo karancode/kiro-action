@@ -1,0 +1,44 @@
+# Auto-fix CI failures on PRs.
+#
+# When the CI workflow fails, Kiro reads the failure logs, attempts to
+# diagnose the root cause, and pushes a fix commit to the PR branch.
+
+name: CI Failure Auto-Fix
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+
+jobs:
+  fix:
+    if: github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+
+      - uses: karancode/kiro-action@main
+        with:
+          kiro_api_key: ${{ secrets.KIRO_API_KEY }}
+          prompt: |
+            The CI workflow failed for branch "${{ github.event.workflow_run.head_branch }}".
+            Workflow run: ${{ github.event.workflow_run.html_url }}
+
+            Tasks:
+              1. Use `gh run view ${{ github.event.workflow_run.id }} --log-failed`
+                 to read the failure output
+              2. Identify the root cause — broken test, type error, lint failure, etc.
+              3. If the fix is small and obvious, apply it and push to this branch
+              4. If the fix is risky or unclear, post a comment on the PR with your
+                 analysis instead of pushing changes
+
+            Do not disable tests or skip lint rules to make the failure go away —
+            fix the underlying problem.

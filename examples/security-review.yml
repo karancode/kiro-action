@@ -1,0 +1,48 @@
+# Security-focused review on PRs that touch sensitive paths.
+#
+# Only runs when files in auth, billing, api, or infra directories change —
+# avoids running expensive security analysis on every PR.
+
+name: Security Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'src/auth/**'
+      - 'src/billing/**'
+      - 'src/api/**'
+      - 'infra/**'
+      - '**/Dockerfile'
+      - '.github/workflows/**'
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: karancode/kiro-action@main
+        with:
+          kiro_api_key: ${{ secrets.KIRO_API_KEY }}
+          prompt: |
+            Perform a security review of pull request #${{ github.event.pull_request.number }}.
+
+            This PR touches sensitive code paths. Check for:
+              - OWASP Top 10 vulnerabilities (injection, broken auth, IDOR, SSRF, XXE)
+              - Hardcoded secrets, API keys, or credentials
+              - Insecure dependencies or known-vulnerable versions
+              - Missing input validation or output encoding
+              - Authorization checks bypassed or missing
+              - Sensitive data in logs or error messages
+              - Workflow permissions overly broad
+              - Cryptographic primitives misused
+
+            Post findings as PR review comments. Mark severity as
+            Critical / High / Medium / Low. Do not push code changes.
