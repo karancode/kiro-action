@@ -1,36 +1,25 @@
 # kiro-action
 
-GitHub Action for [Kiro](https://kiro.dev) — the AI-powered agentic IDE by AWS.
+A GitHub Action that runs [Kiro](https://kiro.dev) — AWS's agentic IDE and command-line interface — on your pull requests, issues, and schedules. Mention `/kiro` in a comment, assign an issue to the `kiro` user, or run it from a workflow with an explicit prompt. Kiro reads the context, writes the code, and opens a pull request.
 
-Bring Kiro's full agentic loop into your GitHub workflows: mention `/kiro` in any PR or issue, assign it to an issue, or run it on a schedule — and Kiro reads the context, implements the changes, and opens a pull request.
+It's [headless mode](https://kiro.dev/docs/cli/headless), wired up to GitHub.
 
----
+## What you can do with it
 
-## How it works
+- **Comment on a PR or issue** — `/kiro fix the null deref in src/auth/login.ts` and Kiro pushes a fix
+- **Assign an issue** to `kiro` — Kiro reads the body, implements it, opens a PR
+- **Run on a schedule** — weekly dependency upgrades, drift checks, doc sync, whatever you wire up
+- **Wrap it in a custom prompt** — security review on every PR, auto-fix CI failures, triage new issues
 
-Three trigger modes:
-
-| Mode | How to trigger | What happens |
-|---|---|---|
-| **comment** | Comment `/kiro <instruction>` on any PR or issue | Kiro reads the context, implements the change, commits, opens a PR |
-| **assign** | Assign the issue or PR to `kiro` | Kiro reads the issue body, implements a solution, opens a PR |
-| **auto** | Set `prompt:` in a scheduled or push workflow | Kiro runs the prompt against the repo, returns structured output |
-
----
+The [`examples/`](examples/) directory has nine ready-to-drop-in workflows.
 
 ## Quickstart
 
-### 1. Add your Kiro API key as a secret
+**1.** Add `KIRO_API_KEY` as a repo secret (Settings → Secrets and variables → Actions).
 
-In your repo: **Settings → Secrets and variables → Actions → New repository secret**
-
-- Name: `KIRO_API_KEY`
-- Value: your Kiro API key (from [kiro.dev](https://kiro.dev))
-
-### 2. Create a workflow file
+**2.** Drop a workflow file into `.github/workflows/`:
 
 ```yaml
-# .github/workflows/kiro.yml
 name: Kiro
 
 on:
@@ -52,152 +41,91 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - uses: karancode/kiro-action@main
+        with:
+          fetch-depth: 0
+      - uses: karancode/kiro-action@v1
         with:
           kiro_api_key: ${{ secrets.KIRO_API_KEY }}
 ```
 
-### 3. Trigger it
+**3.** Comment `/kiro <anything>` on an issue or PR.
 
-Comment on any issue or PR:
+That's it. For other patterns, copy a file from [`examples/`](examples/).
 
-```
-/kiro fix the null pointer exception in src/auth/login.ts
-```
+## Examples
 
-Kiro will:
-1. Post a progress comment
-2. Read the PR diff / issue body for context
-3. Implement the fix
-4. Commit the changes and open a pull request
-5. Update the comment with a summary and PR link
-
----
-
-## Trigger modes in detail
-
-### Comment mode
-
-Mention `/kiro` followed by your instruction in any issue or issue comment, PR comment, or PR review comment.
-
-```
-/kiro refactor this function to use async/await
-/kiro add unit tests for the new billing module
-/kiro explain what this code does and suggest improvements
-```
-
-Only users with **write access** to the repo can trigger Kiro via comments.
-
-### Assign mode
-
-Assign an issue or PR to the `kiro` GitHub user. Kiro will read the issue title and body as its task description and open a PR with the implementation.
-
-Useful for triaging issues in bulk — label them, assign to `kiro`, and let it work through them.
-
-### Auto mode
-
-Run Kiro on a schedule or in response to push events using an explicit `prompt:` input:
-
-```yaml
-- uses: karancode/kiro-action@main
-  with:
-    kiro_api_key: ${{ secrets.KIRO_API_KEY }}
-    prompt: |
-      Review all TODO comments in the codebase.
-      For each one, either implement the fix or open a GitHub issue.
-```
-
-The output is available as a step output for downstream steps:
-
-```yaml
-- uses: karancode/kiro-action@main
-  id: kiro
-  with:
-    kiro_api_key: ${{ secrets.KIRO_API_KEY }}
-    prompt: 'Summarise what changed in the last 10 commits'
-
-- run: echo "${{ steps.kiro.outputs.kiro_output }}"
-```
-
----
+| File | What it does |
+|---|---|
+| [`kiro.yml`](examples/kiro.yml) | The default — `/kiro` mentions and `kiro` assignments |
+| [`pr-review.yml`](examples/pr-review.yml) | Comprehensive review on every PR |
+| [`security-review.yml`](examples/security-review.yml) | OWASP-style review on sensitive paths only |
+| [`external-contributor-review.yml`](examples/external-contributor-review.yml) | Strict review for non-team PRs |
+| [`issue-triage.yml`](examples/issue-triage.yml) | Auto-label new issues, request missing info |
+| [`docs-sync.yml`](examples/docs-sync.yml) | Keep docs in sync with code changes |
+| [`dependency-audit.yml`](examples/dependency-audit.yml) | Weekly dependency upgrade PR |
+| [`ci-failure-fix.yml`](examples/ci-failure-fix.yml) | Auto-fix failing CI on PR branches |
+| [`code-reviewer-agent.yml`](examples/code-reviewer-agent.yml) | Use a custom Kiro agent for review |
 
 ## Inputs
 
 | Input | Required | Default | Description |
 |---|---|---|---|
-| `kiro_api_key` | Yes | — | Kiro API key. Use a repository secret. |
-| `github_token` | No | `github.token` | GitHub token for API operations. |
-| `prompt` | No | — | Explicit prompt for auto mode. |
-| `trigger_phrase` | No | `/kiro` | Comment phrase that activates comment mode. |
-| `assignee_trigger` | No | `kiro` | GitHub username that activates assign mode. |
-| `branch_prefix` | No | `kiro/` | Prefix for branches created by Kiro. |
-| `kiro_args` | No | `--trust-all-tools` | Extra arguments passed to `kiro-cli chat`. |
+| `kiro_api_key` | yes | — | Kiro API key. Pass via secret. |
+| `github_token` | no | `github.token` | Token used for GitHub API calls. |
+| `prompt` | no | — | Explicit prompt for scheduled / push triggers. |
+| `trigger_phrase` | no | `/kiro` | Phrase that activates Kiro from comments. |
+| `assignee_trigger` | no | `kiro` | GitHub username whose assignment activates Kiro. |
+| `branch_prefix` | no | `kiro/` | Prefix for branches Kiro creates. |
+| `kiro_args` | no | `--trust-all-tools` | Extra flags passed through to `kiro-cli chat`. See [`kiro-cli chat --help`](https://kiro.dev/docs/cli/headless) for the full list. |
 
 ## Outputs
 
 | Output | Description |
 |---|---|
-| `branch_name` | Branch created by Kiro (if file changes were made). |
-| `pr_url` | URL of the pull request opened by Kiro (if any). |
-| `kiro_output` | Cleaned text output from the Kiro CLI. |
-
----
+| `branch_name` | Branch Kiro pushed to (when changes were made). |
+| `pr_url` | URL of the PR Kiro opened (when one was opened). |
+| `kiro_output` | Cleaned output from the Kiro CLI. |
 
 ## Permissions
 
-The workflow job needs these permissions:
+Comment and assign modes need write access to commit and open PRs:
 
 ```yaml
 permissions:
   contents: write       # push branches
-  issues: write         # post and update comments
-  pull-requests: write  # open pull requests
+  issues: write         # post / update progress comments
+  pull-requests: write  # open PRs
 ```
 
----
+For pure review or triage workflows (no commits), `contents: read` is enough — see the individual examples for the minimal permission set each one needs.
 
-## Examples
+## How triggers work
 
-Ready-to-use workflow files for common use cases live in [`examples/`](examples/):
+| Mode | Activates on | Behavior |
+|---|---|---|
+| **comment** | `issue_comment` or `pull_request_review_comment` containing the trigger phrase | Only repo collaborators with write access can trigger. Kiro posts a sticky progress comment, then updates it with the result. |
+| **assign** | `issues.assigned` or `pull_request.assigned` to the assignee user | Reads issue / PR body as the task. |
+| **auto** | Any event where `prompt:` is set on the action | Skips trigger detection — runs the prompt directly. |
 
-| File | What it does |
-|---|---|
-| [`kiro.yml`](examples/kiro.yml) | Default workflow — `/kiro` mentions and `kiro` assignments |
-| [`issue-triage.yml`](examples/issue-triage.yml) | Auto-label new issues, ask for missing info |
-| [`pr-review.yml`](examples/pr-review.yml) | Comprehensive code review on every PR |
-| [`security-review.yml`](examples/security-review.yml) | Security review on sensitive paths only |
-| [`external-contributor-review.yml`](examples/external-contributor-review.yml) | Strict review for non-team contributors |
-| [`dependency-audit.yml`](examples/dependency-audit.yml) | Weekly dependency upgrade PR |
-| [`docs-sync.yml`](examples/docs-sync.yml) | Keep docs in sync with code changes |
-| [`code-reviewer-agent.yml`](examples/code-reviewer-agent.yml) | PR review using a custom Kiro agent |
-| [`ci-failure-fix.yml`](examples/ci-failure-fix.yml) | Auto-fix CI failures on PR branches |
+A repo can use any combination of these. They don't conflict.
 
-Drop any of them into your repo's `.github/workflows/` directory and adapt as needed.
+## Authentication
 
----
+Set `KIRO_API_KEY` to a Kiro API key from your account at [kiro.dev](https://kiro.dev). The action passes it to `kiro-cli` via environment variable — it's never logged or exposed to the prompt.
+
+AWS IAM / SIGV4 authentication is on the roadmap upstream ([kirodotdev/kiro#5938](https://github.com/kirodotdev/kiro/issues/5938)) — once that lands, the action will support it without long-lived keys.
 
 ## Development
 
 ```bash
-bun install          # install dependencies
-bun run typecheck    # type-check without emitting
-bun test             # run unit tests (47 tests)
-bun run build        # bundle to dist/index.js
-bun run format       # format source files
+bun install        # deps
+bun run typecheck  # tsc --noEmit
+bun test           # unit tests
+bun run build      # bundle to dist/index.js
 ```
 
-See [CLAUDE.md](CLAUDE.md) for architecture details.
-
----
-
-## Roadmap
-
-- [ ] Support AWS IAM / SIGV4 authentication (no long-lived API keys)
-- [ ] Kiro spec-driven mode: issue → auto-generate `.kiro/specs/` → implement
-- [ ] Transfer to `github.com/kirodotdev/kiro-action`
-
----
+The bundled `dist/index.js` is committed and is what GitHub runs. Source lives in `src/`. See [CLAUDE.md](CLAUDE.md) for the architecture.
 
 ## License
 
-MIT
+MIT.
