@@ -1,0 +1,47 @@
+# Strict review for PRs from external contributors (non-team members).
+#
+# Runs only when the PR author isn't a member of the repo. Useful for OSS
+# projects where you want extra scrutiny on outside contributions.
+
+name: External Contributor Review
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    # Skip if the PR author has write access to the repo
+    if: |
+      github.event.pull_request.author_association != 'MEMBER' &&
+      github.event.pull_request.author_association != 'OWNER' &&
+      github.event.pull_request.author_association != 'COLLABORATOR'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: karancode/kiro-action@main
+        with:
+          kiro_api_key: ${{ secrets.KIRO_API_KEY }}
+          prompt: |
+            Review external PR #${{ github.event.pull_request.number }}
+            from @${{ github.event.pull_request.user.login }}.
+
+            This is an external contribution and warrants extra scrutiny.
+            Check for:
+              - Malicious or obfuscated code
+              - Unexpected network calls or data exfiltration
+              - Workflow modifications that could leak secrets
+              - Dependency additions (check for typosquats and supply-chain risk)
+              - Test changes that disable existing assertions
+              - Style and conventions matching the rest of the codebase
+
+            Post a review comment summarizing whether the PR is safe to merge,
+            and what the maintainer should pay attention to. Do not push code.

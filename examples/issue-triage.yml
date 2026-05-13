@@ -1,0 +1,38 @@
+# Auto-triage every newly-opened issue.
+#
+# When an issue is opened, Kiro reads the issue body, determines the right
+# labels, and applies them. Useful for keeping a backlog organized without
+# manual triage.
+
+name: Issue Triage
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: karancode/kiro-action@main
+        with:
+          kiro_api_key: ${{ secrets.KIRO_API_KEY }}
+          prompt: |
+            Triage issue #${{ github.event.issue.number }} in ${{ github.repository }}.
+
+            Read the issue body and apply appropriate labels from the repository's
+            existing label set. Categories to consider:
+              - Type:     bug, feature, question, documentation
+              - Priority: P0 (critical), P1 (high), P2 (medium), P3 (low)
+              - Area:     (whatever the codebase uses — auth, billing, ui, etc.)
+
+            If the issue lacks essential information (steps to reproduce for bugs,
+            acceptance criteria for features), post a comment asking for clarification.
+
+            Do not write code or open PRs — labels and comments only.

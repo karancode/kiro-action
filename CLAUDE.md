@@ -1,22 +1,19 @@
 # kiro-action
 
-Official GitHub Action for Kiro — the AI-powered agentic IDE by AWS.
+GitHub Action that runs [Kiro](https://kiro.dev) — AWS's agentic IDE and command-line interface — in CI. Handles `/kiro` comment triggers, issue/PR assignment, and explicit prompt automation.
 
-## What this does
+## Trigger modes
 
-Full agentic loop: `@kiro` mentions in PRs/issues → Kiro reads context → implements code → commits → opens PR.
-
-Three trigger modes:
-- **comment-mode**: `@kiro <instruction>` in any PR or issue comment
-- **assign-mode**: Issue or PR assigned to `kirocli` (or configured `assignee_trigger`)
-- **auto-mode**: Explicit `prompt:` input in a scheduled or push workflow
+- **comment** — `/kiro <instruction>` in any PR or issue comment
+- **assign** — Issue or PR assigned to `kiro` (or whatever `assignee_trigger` is set to)
+- **auto** — Explicit `prompt:` input on a scheduled or push workflow
 
 ## Stack
 
-- **Runtime**: TypeScript + Bun
-- **Build**: `bun build src/index.ts --outfile dist/index.js` (dist/ is committed)
-- **Tests**: `bun test` (test files in `tests/`)
-- **GitHub API**: `@actions/github` + `@octokit/rest`
+- TypeScript + Bun
+- Build: `bun build src/index.ts --outfile dist/index.js` (`dist/` is committed)
+- Tests: `bun test` (files in `tests/`)
+- GitHub API: `@actions/github` + `@octokit/rest`
 
 ## Key files
 
@@ -30,21 +27,22 @@ src/
     pr.ts                  # Branch creation, commit, PR open
   modes/
     detect.ts              # Determines mode from event + inputs
-    comment-mode.ts        # Handles @kiro comment trigger
+    comment-mode.ts        # Handles /kiro comment trigger
     assign-mode.ts         # Handles assignment trigger
     auto-mode.ts           # Handles explicit prompt: input
   prompt/build-prompt.ts   # Builds context-rich prompt for Kiro
-  kiro/runner.ts           # Spawns kiro chat --no-interactive, returns cleaned output
+  kiro/runner.ts           # Spawns kiro-cli chat --no-interactive, returns cleaned output
   utils/
     auth.ts                # Validates KIRO_API_KEY
-    ansi.ts                # Strips ANSI escape codes (workaround for kiro#7929)
+    ansi.ts                # Strips ANSI escape codes (workaround for kirodotdev/kiro#7929)
+    extract-output.ts      # Pulls the structured summary + PR title out of kiro-cli output
 ```
 
 ## CLI installation
 
-The Kiro CLI is installed via the official install script at `https://cli.kiro.dev/install`.
-Version is resolved at runtime from the stable manifest at `https://prod.download.cli.kiro.dev/stable/latest/manifest.json`.
-The binary is named `kiro-cli` and installed to `~/.local/bin/`.
+Kiro CLI is installed via the official script at `https://cli.kiro.dev/install`. Version is resolved at runtime from `https://prod.download.cli.kiro.dev/stable/latest/manifest.json` for cache keying. The binary is `kiro-cli`, installed to `~/.local/bin/`.
+
+The direct binary CDN returns 403 for non-script downloads, so `curl | bash` is currently the only supported install path. The manifest is used for version metadata only.
 
 ## Commands
 

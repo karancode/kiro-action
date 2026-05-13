@@ -1,0 +1,41 @@
+# Automated PR review on every push.
+#
+# When a PR is opened or updated, Kiro reads the diff and posts a review
+# covering code quality, security, performance, and test coverage.
+
+name: PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: karancode/kiro-action@main
+        with:
+          kiro_api_key: ${{ secrets.KIRO_API_KEY }}
+          prompt: |
+            Review pull request #${{ github.event.pull_request.number }}.
+
+            Focus on:
+              - Code quality:  readability, error handling, edge cases
+              - Security:      injection, auth bypasses, secrets in code
+              - Performance:   N+1 queries, unnecessary loops, leaks
+              - Tests:         coverage of new behavior and edge cases
+
+            Post a top-level review comment with your findings. For specific
+            line-level issues, leave inline comments. Be concise — flag what
+            matters, skip nitpicks.
+
+            Do not push code changes — review only.

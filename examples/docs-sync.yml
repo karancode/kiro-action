@@ -1,0 +1,43 @@
+# Keep documentation in sync with code changes.
+#
+# When a PR modifies source files, Kiro checks whether docs need updating
+# and updates them in the same PR.
+
+name: Docs Sync
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'src/**'
+      - '!src/**/*.test.*'
+
+jobs:
+  sync-docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - uses: karancode/kiro-action@main
+        with:
+          kiro_api_key: ${{ secrets.KIRO_API_KEY }}
+          prompt: |
+            Pull request #${{ github.event.pull_request.number }} modifies source code.
+            Check whether the docs (README.md, docs/, inline JSDoc/docstrings) need
+            updating to reflect the code changes.
+
+            For each change, determine:
+              - Is a public API affected?  → update docs
+              - Is a CLI flag added/removed/renamed?  → update docs
+              - Did config or env vars change?  → update docs
+              - Are there new/removed examples worth showing?  → update docs
+
+            If updates are needed, edit the doc files and push to this PR's branch.
+            If no updates are needed, post a comment confirming that.
