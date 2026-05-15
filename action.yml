@@ -1,10 +1,10 @@
 name: 'Kiro Action'
-description: 'Run Kiro AI in your GitHub workflows — review, implement, and automate with @kiro'
-author: 'kiro-action'
+description: 'Run Kiro in your GitHub workflows — review, implement, and automate with /kiro mentions, assignments, or scheduled prompts.'
+author: 'karancode'
 
 branding:
-  icon: 'cpu'
-  color: 'orange'
+  icon: 'zap'
+  color: 'purple'
 
 inputs:
   kiro_api_key:
@@ -32,10 +32,6 @@ inputs:
   kiro_args:
     description: 'Additional arguments passed to kiro-cli chat (e.g. "--agent code-reviewer")'
     default: '--trust-all-tools'
-    required: false
-  trust_all_tools:
-    description: 'Pass --trust-all-tools to kiro-cli, allowing it to write files and execute commands without per-tool confirmation'
-    default: 'true'
     required: false
 
 outputs:
